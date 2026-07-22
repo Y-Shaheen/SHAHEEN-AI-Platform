@@ -179,6 +179,16 @@ const MainRoutes = {
       name: 'About',
       path: '/about',
       component: () => import('@/views/AboutPage.vue')
+    },
+    {
+      name: 'Git',
+      path: '/git',
+      component: () => import('@/views/GitPage.vue')
+    },
+    {
+      name: 'Terminal',
+      path: '/terminal',
+      component: () => import('@/views/TerminalPage.vue')
     }
   ]
 };

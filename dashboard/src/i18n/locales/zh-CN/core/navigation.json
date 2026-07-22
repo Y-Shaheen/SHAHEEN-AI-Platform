@@ -46,5 +46,7 @@
     "normal": "普通配置",
     "system": "系统配置"
   },
-  "pluginWebui": "插件页面"
+  "pluginWebui": "插件页面",
+  "git": "Git",
+  "terminal": "终端"
 }

@@ -4,6 +4,8 @@ from fastapi import APIRouter
 
 from .api_keys import router as api_keys_router
 from .auth import router as auth_router
+from .git import router as git_router
+from .terminal import router as terminal_router
 from .backups import router as backups_router
 from .bots import router as bots_router
 from .chat import router as chat_router
@@ -60,4 +62,6 @@ def build_api_router() -> APIRouter:
     router.include_router(updates_router)
     router.include_router(open_api_router)
     router.include_router(live_chat_router)
+    router.include_router(git_router)
+    router.include_router(terminal_router)
     return router

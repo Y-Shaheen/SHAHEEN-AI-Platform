@@ -122,6 +122,16 @@ const sidebarItem: menu[] = [
         icon: 'mdi-timeline-text-outline',
         to: '/trace'
       },
+      {
+        title: 'core.navigation.git',
+        icon: 'mdi-source-repository',
+        to: '/git'
+      },
+      {
+        title: 'core.navigation.terminal',
+        icon: 'mdi-console-line',
+        to: '/terminal'
+      },
     ]
   }
   // {
