@@ -1,5 +1,4 @@
-![AstrBot-Logo-Simplified](https://github.com/user-attachments/assets/36fb04e4-cc75-4454-bd8b-049d11aa86f9)
-
+![SHAHEEN-AI-Platform](https://i.postimg.cc/7PTFs9CS/Picsart-26-07-22-20-29-24-877.png)
 
 <div align="center">
 
