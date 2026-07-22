@@ -1,51 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# open-pr-gh.sh
-# Create a GitHub PR for the current branch using GitHub CLI (gh).
-# Usage: ./open-pr-gh.sh
-# Optional env:
-#   REVIEWERS="alice,bob"    -> add as reviewers
-#   ASSIGNEE="alice"         -> add assignee
-#   DRAFT=1                  -> create draft PR
-#   LABELS="i18n,feature"    -> comma-separated labels to add
-
-# Ensure we're in a git repo
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "ERROR: Not inside a git repository."
-  exit 1
-fi
-
-# Ensure gh is installed
-if ! command -v gh >/dev/null 2>&1; then
-  echo "ERROR: GitHub CLI 'gh' is not installed or not on PATH."
-  echo "Install from https://cli.github.com/ and authenticate with 'gh auth login'."
-  exit 1
-fi
-
-# Determine current branch
-HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ -z "$HEAD_BRANCH" ]; then
-  echo "ERROR: Could not determine current branch."
-  exit 1
-fi
-
-# Determine remote default branch (origin HEAD)
-REMOTE_DEFAULT=$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p' || true)
-if [ -z "$REMOTE_DEFAULT" ]; then
-  # fallback: check if main or master exists on remote
-  if git ls-remote --heads origin main >/dev/null 2>&1; then
-    REMOTE_DEFAULT="main"
-  elif git ls-remote --heads origin master >/dev/null 2>&1; then
-    REMOTE_DEFAULT="master"
-  else
-    REMOTE_DEFAULT="main"
-  fi
-fi
-
 # PR metadata
 PR_TITLE="feat(i18n): add Arabic (ar) translations and RTL support"
-read -r -d '' PR_BODY <<'EOF'
+
+PR_BODY=$(cat <<'EOF'
 This PR adds complete Arabic (ar) localization support for the dashboard and RTL layout handling.
 
 Summary of changes:
@@ -89,51 +45,4 @@ If you want reviewers, assignees, or labels added, set the environment variables
 - LABELS="i18n,feature"
 - DRAFT=1   (to create a draft PR)
 EOF
-
-# Build gh command
-GH_CMD=("gh" "pr" "create" "--title" "$PR_TITLE" "--body" "$PR_BODY" "--base" "$REMOTE_DEFAULT" "--head" "$HEAD_BRANCH")
-
-# Add draft flag if requested
-if [ "${DRAFT:-0}" = "1" ] || [ "${DRAFT:-0}" = "true" ]; then
-  GH_CMD+=("--draft")
-fi
-
-# Add labels if provided
-if [ -n "${LABELS:-}" ]; then
-  IFS=',' read -ra LABS <<< "$LABELS"
-  for lab in "${LABS[@]}"; do
-    lab_trimmed="$(echo "$lab" | xargs)"
-    if [ -n "$lab_trimmed" ]; then
-      GH_CMD+=("--label" "$lab_trimmed")
-    fi
-  done
-else
-  # default labels
-  GH_CMD+=("--label" "i18n" "--label" "feature")
-fi
-
-# Add assignee if provided
-if [ -n "${ASSIGNEE:-}" ]; then
-  GH_CMD+=("--assignee" "$ASSIGNEE")
-fi
-
-# Add reviewers if provided
-if [ -n "${REVIEWERS:-}" ]; then
-  IFS=',' read -ra RV <<< "$REVIEWERS"
-  for r in "${RV[@]}"; do
-    r_trimmed="$(echo "$r" | xargs)"
-    if [ -n "$r_trimmed" ]; then
-      GH_CMD+=("--reviewer" "$r_trimmed")
-    fi
-  done
-fi
-
-echo "Creating PR on GitHub..."
-echo "Command: ${GH_CMD[*]}"
-
-# Execute the command
-set -x
-"${GH_CMD[@]}"
-set +x
-
-echo "PR creation attempted. If gh reported success, open the created PR in your browser or run 'gh pr view --web'."
+)
