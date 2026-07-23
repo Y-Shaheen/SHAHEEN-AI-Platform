@@ -10,6 +10,53 @@ import runtime_bootstrap
 
 runtime_bootstrap.initialize_runtime_bootstrap()
 
+# Ensure required envs and lightweight health server are started BEFORE heavy imports
+from utils.env_check import ensure_required_envs
+
+# Apply env injections (DATABASE_URL fallback, placeholders for optional keys)
+ensure_required_envs()
+
+# Start a minimal health HTTP server early so Railway sees a listening port
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"ok")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        return
+
+
+def _start_health_server():
+    port = int(os.getenv("PORT", "6185"))
+    host = "0.0.0.0"
+    try:
+        server = HTTPServer((host, port), _HealthHandler)
+    except Exception as e:
+        print(f"[HEALTH] Failed to start health server on {host}:{port}: {e}")
+        return
+
+    def _serve():
+        print(f"[HEALTH] Listening on http://{host}:{port}/health")
+        try:
+            server.serve_forever()
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_serve, daemon=True)
+    t.start()
+
+# Start health server immediately
+_start_health_server()
+
 DASHBOARD_RESET_PASSWORD_ENV = "ASTRBOT_RESET_DASHBOARD_PASSWORD"
 
 
@@ -203,7 +250,7 @@ async def main_async(webui_dir_arg: str | None) -> None:
     if webui_dir is None:
         logger.warning(
             "Dashboard file validation failed, so WebUI features will be unavailable. "
-            "Check the network connection or specify the --webui-dir argument manually."
+            "Check the network connection or specify the --webui-dir argument manually.",
         )
 
     db = db_helper
