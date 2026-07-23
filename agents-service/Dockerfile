@@ -15,8 +15,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # نسخ كود التطبيق
 COPY app.py .
 
-# نسخ ملف البيئة المحلي إن وُجد (اختياري — Railway يمرر المتغيرات تلقائياً)
-COPY .env* ./
-
 # تشغيل نظام الوكلاء
 CMD ["python", "app.py"]
