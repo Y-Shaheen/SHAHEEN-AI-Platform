@@ -30,6 +30,9 @@ REQUIRED_KEYS = [
 
 def _test_http_get(url: str, headers: dict | None = None, timeout: float = 3.0) -> bool:
     try:
+        # ensure URL has scheme
+        if url and not url.startswith("http://") and not url.startswith("https://"):
+            url = "http://" + url
         with httpx.Client(timeout=timeout, verify=True) as client:
             r = client.get(url)
             # Consider any 2xx or 3xx a success
@@ -55,7 +58,7 @@ def ensure_required_envs():
 
     for key in REQUIRED_KEYS:
         if not os.getenv(key):
-            # Do not inject fake API keys if they are intentionally empty in production
+            # Inject benign placeholder for optional keys to avoid library crashes
             os.environ[key] = f"fake-local-secret-{key.lower()}-123"
             print(f"[ENV] Injected safe default for missing env: {key}")
 
@@ -63,17 +66,29 @@ def ensure_required_envs():
     ollama_host = os.getenv("OLLAMA_HOST")
     port = os.getenv("PORT") or os.getenv("OLLAMA_PORT") or "11434"
 
+    # Map bind addresses (0.0.0.0) to loopback for client connections
+    resolved_host = None
+    if ollama_host:
+        host_clean = ollama_host.strip()
+        if host_clean in ("0.0.0.0", "::", ""):
+            # 0.0.0.0 is a listen address; for outbound client requests use localhost
+            resolved_host = "127.0.0.1"
+        else:
+            resolved_host = host_clean
+
     # If OLLAMA_API_BASE is set explicitly, normalize it
     ollama_api_base = os.getenv("OLLAMA_API_BASE")
     if ollama_api_base:
         normalized = ollama_api_base.rstrip("/")
+        # ensure scheme
+        if not normalized.startswith("http://") and not normalized.startswith("https://"):
+            normalized = "http://" + normalized
         os.environ.setdefault("OLLAMA_API_BASE", normalized)
         os.environ.setdefault("OPENAI_API_BASE", normalized + "/v1")
         print("[ENV] Using provided OLLAMA_API_BASE and setting OPENAI_API_BASE accordingly")
-    elif ollama_host:
+    elif resolved_host:
         # assemble base url and prefer it for local LiteLLM/Ollama routing
-        host = ollama_host
-        # If host looks like an URL already, use it
+        host = resolved_host
         if host.startswith("http://") or host.startswith("https://"):
             base = host.rstrip("/")
         else:
@@ -85,7 +100,10 @@ def ensure_required_envs():
     # If OPENAI_API_BASE set but not normalized, normalize it
     openai_api_base = os.getenv("OPENAI_API_BASE")
     if openai_api_base:
-        os.environ.setdefault("OPENAI_API_BASE", openai_api_base.rstrip("/"))
+        normalized = openai_api_base.rstrip("/")
+        if not normalized.startswith("http://") and not normalized.startswith("https://"):
+            normalized = "http://" + normalized
+        os.environ.setdefault("OPENAI_API_BASE", normalized)
 
     # Ensure DATABASE_URL exists; if not, create SQLite fallback
     if not os.getenv("DATABASE_URL"):
@@ -115,8 +133,7 @@ def verify_provider_endpoints(retries: int = 2, delay: float = 1.0) -> dict:
 
     # Try OpenAI base
     if openai_base:
-        # Try common endpoints
-        endpoints = [openai_base, openai_base.rstrip("/") + "/v1"]
+        endpoints = [openai_base, openai_base.rstrip("/") + "/v1", openai_base.rstrip("/") + "/v1/models"]
         for _ in range(retries + 1):
             for ep in endpoints:
                 if _test_http_get(ep):
@@ -128,7 +145,6 @@ def verify_provider_endpoints(retries: int = 2, delay: float = 1.0) -> dict:
 
     # Try Ollama base
     if ollama_base:
-        # Ollama has /v1 endpoint as well
         endpoints = [ollama_base, ollama_base.rstrip("/") + "/v1", ollama_base.rstrip("/") + "/v1/models"]
         for _ in range(retries + 1):
             for ep in endpoints:
