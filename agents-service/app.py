@@ -1,116 +1,75 @@
 import os
-from dotenv import load_dotenv
 from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
 
-# تحميل متغيرات البيئة من ملف .env إن وُجد (للتطوير المحلي)
-load_dotenv()
+# قائمة بكافة المفاتيح البيئية المطلوبة للتأكد من وجودها وحقنها برمجياً
+required_keys = [
+    "OPENROUTER_API_KEY", "SLACK_BOT_TOKEN", "TAVILY_API_KEY", "XAI_API_KEY",
+    "OPENAI_API_KEY", "MISTRAL_API_KEY", "GROQ_API_KEY", "GOOGLE_API_KEY",
+    "GEMINI_API_KEY", "EXA_API_KEY", "FIRECRAWL_API_KEY", "ELEVENLABS_API_KEY",
+    "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "GOOGLE_SEARCH_API_KEY", "GOOGLE_SEARCH_ENGINE_ID"
+]
 
-# ======================================================================
-# الربط عبر الشبكة الداخلية لـ Railway
-# OPENAI_API_BASE يشير إلى سيرفر Ollama عبر Private Networking
-# OPENAI_API_KEY مطلوب برمجياً لكنه وهمي لأن Ollama لا يطلب مفتاحاً حقيقياً
-# ======================================================================
-OLLAMA_BASE_URL = os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1")
-OLLAMA_API_KEY  = os.getenv("OPENAI_API_KEY", "fake-railway-key")
-MODEL_NAME      = os.getenv("MODEL_NAME", "llama3:8b")
+print("[SYSTEM] جاري فحص وتأمين حقن المتغيرات البيئية الخادعة والمفاتيح المطلوبة...")
+for key in required_keys:
+    if not os.getenv(key):
+        # حقن قيمة وهمية آمنة في بيئة النظام إذا كان المفتاح فارغاً لضمان عدم الانهيار
+        os.environ[key] = f"fake-local-secret-{key.lower()}-123"
+        print(f"[ENV] تم حقن متغير افتراضي آمن لـ: {key}")
 
-print(f"[CONFIG] Base URL  : {OLLAMA_BASE_URL}")
+# جلب الإعدادات الأساسية للاتصال بمحرك الاستضافة الداخلي لـ Railway
+API_BASE = os.getenv("OPENAI_API_BASE")
+API_KEY = os.getenv("OPENAI_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama3:8b")
+
+# صياغة اسم النموذج المتوافقة مع نظام LiteLLM المدمج في CrewAI
+OLLAMA_MODEL = f"openai/{MODEL_NAME}"
+
+print(f"[CONFIG] Base URL : {API_BASE}")
 print(f"[CONFIG] Model Name: {MODEL_NAME}")
-print("[CONFIG] جارٍ تهيئة نظام الوكلاء...")
+print("[CONFIG] ...جارٍ تهيئة نظام الوكلاء الخارق")
 
-# تهيئة نموذج اللغة عبر واجهة OpenAI المتوافقة مع Ollama
-ollama_llm = ChatOpenAI(
-    base_url=OLLAMA_BASE_URL,
-    api_key=OLLAMA_API_KEY,
-    model=MODEL_NAME,
-    temperature=0.7,
-    max_tokens=2048,
-)
-
-# ======================================================================
-# تعريف الوكلاء
-# ======================================================================
+# تعريف الوكيل الأول (الباحث) مع حقن الإعدادات والرابط الداخلي والـ API Key مباشرة
 researcher = Agent(
-    role="خبير برمجيات وأنظمة",
-    goal=(
-        "تحليل متطلبات النظم وتطوير حلول برمجية مستقلة وآمنة محلياً بنسبة 100%، "
-        "مع التركيز على الأداء والكفاءة في بيئات الحاويات الموزعة."
-    ),
-    backstory=(
-        "أنت مهندس أنظمة ذكي تعمل داخل بيئة معزولة ومستقرة تعتمد على نماذج مفتوحة المصدر. "
-        "ميزتك الكبرى هي تقديم حلول برمجية عبقرية ونظيفة دون الاعتماد على خدمات سحابية مدفوعة."
-    ),
-    llm=ollama_llm,
-    verbose=True,
-    allow_delegation=False,
+    role='خبير برمجيات وأنظمة',
+    goal='تحليل متطلبات النظم وتطوير حلول برمجية مستقلة وآمنة محلياً بنسبة 100%',
+    backstory='أنت مهندس أنظمة ذكي تعمل داخل بيئة معزولة ومستقرة، ميزتك الكبرى هي تقديم حلول برمجية عبقرية ونظيفة.',
+    llm=OLLAMA_MODEL,
+    base_url=API_BASE,
+    api_key=API_KEY,
+    verbose=True
 )
 
+# تعريف الوكيل الثاني (الكاتب) مع حقن الإعدادات والرابط الداخلي والـ API Key مباشرة
 writer = Agent(
-    role="محرر تقني محترف",
-    goal=(
-        "صياغة التقارير الفنية وشرح البنى التحتية بأسلوب واضح ومفهوم "
-        "يستهدف المطورين وصانعي القرار في آنٍ واحد."
-    ),
-    backstory=(
-        "أنت خبير في تبسيط المفاهيم المعقدة وشرح الأنظمة الموزعة. "
-        "تحوّل التقارير التقنية الجافة إلى محتوى جذاب ومقنع دون فقدان الدقة والعمق."
-    ),
-    llm=ollama_llm,
-    verbose=True,
-    allow_delegation=False,
+    role='محرر تقني محترف',
+    goal='صياغة التقارير الفنية وشرح البنى التحتية بأسلوب واضح ومفهوم',
+    backstory='أنت خبير في تبسيط المفاهيم المعقدة وشرح الأنظمة الموزعة للمطورين.',
+    llm=OLLAMA_MODEL,
+    base_url=API_BASE,
+    api_key=API_KEY,
+    verbose=True
 )
 
-# ======================================================================
-# تعريف المهام
-# ======================================================================
-task_research = Task(
-    description=(
-        "قم بإجراء تحليل فني شامل لمقارنة استخدام النماذج المحلية مفتوحة المصدر "
-        "(مثل llama3, mistral, phi3) مقابل الاعتماد على APIs السحابية المدفوعة "
-        "(مثل OpenAI GPT-4, Anthropic Claude). "
-        "يجب أن يغطي التحليل: التكلفة التشغيلية، الخصوصية والأمان، "
-        "الكمون (Latency)، قابلية التوسع، وجودة الاستجابة."
-    ),
-    agent=researcher,
-    expected_output=(
-        "تقرير فني منقح من 400 إلى 600 كلمة يتضمن جدول مقارنة واضح "
-        "وتوصية نهائية مدعومة بالأرقام والحجج التقنية."
-    ),
+# تعريف المهام (Tasks) البرمجية للتشغيل التلقائي
+task1 = Task(
+    description="قم بتحليل ميزات استخدام النماذج المحلية مفتوحة المصدر مقارنة بالـ APIs المدفوعة وعمل مقارنة هيكلية.", 
+    agent=researcher, 
+    expected_output="تقرير فني منقح وجاهز للصياغة."
 )
 
-task_write = Task(
-    description=(
-        "بناءً على تقرير الباحث، اكتب مقالاً تقنياً احترافياً يبرز كفاءة وفوائد "
-        "الاستضافة الذاتية للنماذج الذكية. يجب أن يكون المقال جذاباً للمطورين "
-        "والشركات الناشئة التي تبحث عن حلول ذكاء اصطناعي اقتصادية وآمنة. "
-        "أضف عنواناً رئيسياً قوياً وخاتمة تدعو القارئ للتجربة الفعلية."
-    ),
-    agent=writer,
-    expected_output=(
-        "مقال تقني نهائي من 500 إلى 800 كلمة، جاهز للنشر، يتضمن عنواناً، "
-        "مقدمة، أقساماً واضحة، وخاتمة مع دعوة للعمل (Call to Action)."
-    ),
+task2 = Task(
+    description="اكتب مقالاً تقنياً بناءً على تحليل الباحث يبرز كفاءة الاستضافة المستقلة على منصات السحاب محلياً.", 
+    agent=writer, 
+    expected_output="مقال نهائي احترافي جاهز للنشر الفوري."
 )
 
-# ======================================================================
-# إقلاع نظام الوكلاء
-# ======================================================================
+# إقلاع الـ Crew لبدء التنفيذ الصارم للمشروع على السيرفر المحلي
 crew = Crew(
-    agents=[researcher, writer],
-    tasks=[task_research, task_write],
-    verbose=True,
+    agents=[researcher, writer], 
+    tasks=[task1, task2], 
+    verbose=True
 )
 
-if __name__ == "__main__":
-    print("\n" + "=" * 60)
-    print("  SHAHEEN-AI — نظام الوكلاء الذكي (CrewAI + Ollama)")
-    print("=" * 60 + "\n")
-
-    result = crew.kickoff()
-
-    print("\n" + "=" * 60)
-    print("  النتيجة النهائية للوكلاء:")
-    print("=" * 60)
-    print(result)
-    print("=" * 60 + "\n")
+print("[START] تفعيل الوكلاء وبدء الاتصال الداخلي بمحرك Ollama...")
+result = crew.kickoff()
+print("\n### النتيجة النهائية للوكلاء: ###\n", result)
