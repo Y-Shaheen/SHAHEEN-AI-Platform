@@ -25,7 +25,7 @@ from astrbot.core.utils.t2i.renderer import HtmlRenderer
 from .log import LogBroker, LogManager  # noqa
 from .utils.astrbot_path import get_astrbot_data_path
 
-# 初始化数据存储文件夹
+# Initialize data folder
 os.makedirs(get_astrbot_data_path(), exist_ok=True)
 
 DEMO_MODE = os.getenv("DEMO_MODE", "False").strip().lower() in ("true", "1", "t")
@@ -36,10 +36,21 @@ html_renderer = HtmlRenderer(t2i_base_url)
 logger = LogManager.GetLogger(log_name="astrbot")
 LogManager.configure_logger(logger, astrbot_config)
 LogManager.configure_trace_logger(astrbot_config)
-db_helper = SQLiteDatabase(DB_PATH)
-# 简单的偏好设置存储, 这里后续应该存储到数据库中, 一些部分可以存储到配置中
+
+# === Database initialization: use DATABASE_URL (Postgres) if provided, otherwise fallback to bundled SQLite.
+from astrbot.core.db.driver import AsyncDatabase  # lightweight async driver wrapper
+
+database_url = os.getenv("DATABASE_URL", "").strip()
+if database_url and not database_url.startswith("sqlite"):
+    # Use AsyncDatabase when a remote database is configured (Postgres, etc.)
+    db_helper = AsyncDatabase(database_url)
+else:
+    # Fallback to local SQLiteDatabase
+    db_helper = SQLiteDatabase(DB_PATH)
+
+# Simple preference store
 sp = SharedPreferences(db_helper=db_helper)
-# 文件令牌服务
+# File token service
 file_token_service = FileTokenService()
 pip_installer = PipInstaller(
     astrbot_config.get("pip_install_arg", ""),
