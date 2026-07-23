@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Load .env for local development if present
 load_dotenv()
@@ -19,6 +21,45 @@ OLLAMA_MODEL = f"ollama_chat/{MODEL_NAME}"
 
 # Inject into environment so LiteLLM / CrewAI pick it up reliably
 os.environ["OLLAMA_API_BASE"] = API_BASE
+
+# Health server: minimal HTTP endpoint using Python stdlib so no extra deps are required
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"ok")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        # suppress default logging to avoid leaking secrets or noisy logs
+        return
+
+
+def start_health_server():
+    port = int(os.getenv("PORT", "6185"))
+    host = "0.0.0.0"
+    try:
+        server = HTTPServer((host, port), _HealthHandler)
+    except Exception as e:
+        print(f"[HEALTH] Failed to start health server on {host}:{port}: {e}")
+        return
+
+    def _serve():
+        print(f"[HEALTH] Listening on http://{host}:{port}/health")
+        try:
+            server.serve_forever()
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_serve, daemon=True)
+    t.start()
+
+# Start health server early so Railway sees a bound port immediately
+start_health_server()
 
 print(f"[CONFIG] OLLAMA_API_BASE : {API_BASE}")
 print(f"[CONFIG] Model Name      : {MODEL_NAME}")
